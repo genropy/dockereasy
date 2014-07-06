@@ -1,6 +1,2 @@
-
-sites/dockereasy/_static/_jslib/26b3de927320d81a2db3394c1bd3c4f7.js
-
-sites/dockereasy/_static/_jslib/138e3aa069ad3258de38130876cc4ca1.js
-
-sites/dockereasy/_static/_jslib/2c4f5174043ee80272dda196c2c60f78.js
+sites/dockereasy/_static/
+sites/dockereasy/_static/*
