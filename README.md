@@ -1,10 +1,47 @@
-DockerEasy
+Dockereasy
 =======
 
-Docker gui 
-    
-	sudo docker run -d -p 8990:8990 -v /var/run/docker.sock:/docker.sock genropy/dockereasy
+A Genropy UI for docker.
+-
+Release 0.1
 
+**Features**
+
+  - Local images: list, inspect, remove, history
+  - Repository images : search & Info
+  - Containers : Stop, Start, Remove, Inspect,Changes,Logs
+  
+  
+**To do**
+
+  - Pull images
+  - Create containers
+  - Commit, Push
+  - More....
+ 
+**Try dockereasy:**
+  
+
+	sudo docker run -d -p 8990:8990 -v /var/run/docker.sock:/docker.sock genropy/dockereasy
+	
+Open your browser to http://*dockerost_ip*:8990
+
+	
+Browsers
+-
+Chrome
+
+Safari 
+
+Firefox
+
+Github
+-
+
+https://github.com/genropy/dockereasy
+ 
+
+**Dockereasy**: Copyright (c) 2014 Softwell.it
 
 License
 =======
