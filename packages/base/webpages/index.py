@@ -23,17 +23,32 @@ class GnrCustomWebPage(object):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
     google_fonts = 'Oxygen:400,700,300'
     
+    def isDeveloper(self):
+        return True
     def main(self, root, **kwargs):
-        mbc = root.borderContainer(background_color='#fefefe', font_family="'Oxygen', sans-serif")
-        self.pageHeader(mbc.contentPane(region='top'))
-        self.pageFooter(mbc.contentPane(region='bottom'))
-        bc = mbc.borderContainer(region='center',datapath='main')
-        top = bc.tabContainer(region='top',height='250px',splitter=True,margin='2px')
-        self.imagesFrame(top.contentPane(title='Images'))
-        self.commandsFrame(top.contentPane(title='Commands',datapath='.commands'))
-        self.containerFrame(top.contentPane(title='Container'))
-        bc.contentPane(region='center')
-        
+        bc = root.borderContainer(background_color='#fefefe', font_family="'Oxygen', sans-serif")
+        self.pageHeader(bc.contentPane(region='top'))
+        self.pageFooter(bc.contentPane(region='bottom'))
+        tc = bc.tabContainer(region='center',splitter=True,margin='2px',datapath='main')
+        self.imagesPanel(tc.stackContainer(title='Images'))
+        self.commandsPanel(tc.contentPane(title='Commands',datapath='.commands'))
+        self.containerPanel(tc.contentPane(title='Container'))
+        self.infoPanel(tc.contentPane(title='Info',datapath='.info'))
+
+    def infoPanel(self,pane):
+        info = Bag()
+        info.fromJson(self.docker.info())
+        version = Bag()
+        version.fromJson(self.docker.version())
+        pane.data('.info',info)
+        pane.data('.version',version)
+        box = pane.div(margin='10px')
+        box.div('Info',color='#2A7ACC',font_weight='bold',line_height='40px',padding='5px',font_size='18px')
+        box.div('==_v.getFormattedValue({nested:true})',_v='^.info')
+        box = pane.div(margin='10px')
+        box.div('Version',color='#2A7ACC',font_weight='bold',line_height='40px',padding='5px',font_size='18px')
+        box.div('==_v.getFormattedValue({nested:true})',_v='^.version')
+
     def pageHeader(self,pane):
         sb = pane.div()
         sb.div('Dockereasy',font_size='40px',color='#FEE14E',font_weight='bold',line_height='40px',display='inline-block',margin_right='4px',margin_left='10px')
@@ -45,10 +60,37 @@ class GnrCustomWebPage(object):
                         gradient_from='gray',gradient_to='silver',gradient_deg=90)
         sb.genrologo.img(src='/_rsrc/common/images/made_with_genropy.png',height='20px')
     
-    def imagesFrame(self,pane):
-        frame = pane.frameGrid(frameCode='dockerImages',datapath='.images',
-                      struct=self.struct_images)
-        frame.top.slotToolbar('2,vtitle,*,delrow,searchOn,4',vtitle='Images')
+    def searchImagePanel(self,bc):
+        frame = bc.framePane(frameCode='searchGrid',region='top',height='50%',splitter=True)
+        bar = frame.top.slotToolbar('2,parentStackButtons,*,remoteSearch,2,searchStarter,5')
+        fb = bar.remoteSearch.formbuilder(cols=1,border_spacing='0',margin_top='2px')
+        fb.textbox(value='^.imageToSearch',lbl='Search')
+        bar.searchStarter.button('Start',fire='.start_search')
+        bar.dataRpc('.founded_images',self.searchImages,imageToSearch='=.imageToSearch',
+                    _fired='^.start_search')
+        f = Bag()
+        f.setItem('name',None,width='10em',field='name',name='Name')
+        f.setItem('description',None,width='40em',field='description',name='Description')
+        f.setItem('is_official',None,dtype='B',field='is_official',name='Official')
+        f.setItem('is_trusted',None,dtype='B',field='is_trusted',name='Trusted')
+        f.setItem('start_count',None,width='7em',field='start_count',name='S.Count')
+        frame.data('.format',f)
+        frame.quickGrid(value='^.founded_images',
+                        format='^.format')
+
+    @public_method
+    def searchImages(self,imageToSearch=None):
+        result = Bag()
+        result.fromJson(self.docker.search(imageToSearch))
+        return result
+
+    def imagesPanel(self,sc):
+        bc = sc.borderContainer(title='!!Local')
+        frame = bc.frameGrid(frameCode='dockerImages',datapath='.images',
+                        grid_selected_Id='.selected_Id',
+                      struct=self.struct_images,region='top',height='50%',splitter=True)
+        self.searchImagePanel(sc.borderContainer(title='!!Remote'))
+        frame.top.slotToolbar('2,parentStackButtons,*,delrow,searchOn,4')
         frame.grid.bagStore(storeType='ValuesBagRows',
                                 sortedBy='=.grid.sorted',
                                 deleteRows="""function(pkeys,protectPkeys){
@@ -61,6 +103,22 @@ class GnrCustomWebPage(object):
                                 data='^.currentImages',selfUpdate=True,
                                 _identifier='Id')
         frame.dataRpc('.currentImages',self.getCurrentImages,_onStart=True,_timing=5)
+        center = bc.tabContainer(region='center',datapath='.images',margin='2px')
+        center.contentPane(title='Inspect').div('==_inspect?_inspect.getFormattedValue({nested:true}):"";',_inspect='^.inspect',margin='2px',font_size='14px')
+        center.contentPane(title='History').quickGrid(value='^.history')
+
+        center.dataRpc('dummy',self.getImageDetails,image='^.grid.selected_Id',
+                        _onResult="""SET .history=result.pop("history");
+                                    SET .inspect=result.pop("inspect");
+                                            """)
+
+    @public_method
+    def getImageDetails(self,image=None):
+        inspect = Bag()
+        history = Bag()
+        inspect.fromJson(self.docker.inspect_image(image))
+        history.fromJson(self.docker.history(image))
+        return Bag(dict(inspect=inspect,history=history))
 
     @public_method
     def deleteImages(self,imagesNames=None):
@@ -92,7 +150,7 @@ class GnrCustomWebPage(object):
         for contId in pkeys:
             self.docker.remove_container(contId)
 
-    def containerFrame(self,pane):
+    def containerPanel(self,pane):
         frame = pane.frameGrid(frameCode='containers',datapath='.containers',struct=self.struct_containers)
         bar = frame.top.slotToolbar('2,sbuttons,*,stop_remove_btn,start_btn,searchOn,4')
         bar.start_btn.slotButton('Start',hidden='^.currentStorename?=#v=="active"',action='FIRE .start_selected')
@@ -126,7 +184,7 @@ class GnrCustomWebPage(object):
         r.cell('Ports',width='20em',name='Ports')
         r.cell('Status',width='12em',name='Status')
 
-    def commandsFrame(self,pane):
+    def commandsPanel(self,pane):
         view = pane.frameGrid(frameCode='V_commands' ,struct=self.struct_command,
                                     datapath='.view')
         view.top.slotToolbar('2,vtitle,*,delrow,addrow,5',vtitle='Commands')
