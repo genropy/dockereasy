@@ -24,8 +24,8 @@ class GnrCustomWebPage(object):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
     google_fonts = 'Oxygen:400,700,300'
     
-    def isDeveloper(self):
-        return True
+   #def isDeveloper(self):
+   #    return True
         
     def main(self, root, **kwargs):
         bc = root.borderContainer(background_color='#fefefe', font_family="'Oxygen', sans-serif")
