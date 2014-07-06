@@ -14,9 +14,9 @@ from docker.client import Client
 import sh
 
 try:
-    DOCKER_HOST='tcp://%s:2375' %sh.boot2docker('ip')
+    DOCKER_HOST = 'tcp://%s:2375' %sh.boot2docker('ip')
 except sh.CommandNotFound,e:
-    DOCKER_HOST=None
+    DOCKER_HOST = 'unix://docker.sock'
 
 class GnrCustomWebPage(object):
     css_requires='public'
@@ -38,11 +38,13 @@ class GnrCustomWebPage(object):
         sb = pane.div()
         sb.div('Dockereasy',font_size='40px',color='#FEE14E',font_weight='bold',line_height='40px',display='inline-block',margin_right='4px',margin_left='10px')
         sb.div('a Genropy Docker UI',font_size='12px',color='#2A7ACC',line_height='40px',display='inline-block')
+    
     def pageFooter(self,pane):
         pane.attributes.update(dict(overflow='hidden',background='silver'))
         sb = pane.slotToolbar('3,genrologo,*',_class='slotbar_toolbar framefooter',height='20px',
                         gradient_from='gray',gradient_to='silver',gradient_deg=90)
         sb.genrologo.img(src='/_rsrc/common/images/made_with_genropy.png',height='20px')
+    
     def imagesFrame(self,pane):
         frame = pane.frameGrid(frameCode='dockerImages',datapath='.images',
                       struct=self.struct_images)
@@ -114,6 +116,16 @@ class GnrCustomWebPage(object):
                             data='^.containerData',currentStorename='^.currentStorename',_delay=100)
         frame.dataRpc('.containerData',self.getContainers,_onStart=True,_timing=5,_fired='^.forced_reload')
 
+    def struct_containers(self,struct):
+        r = struct.view().rows()
+        r.cell('Command',width='12em',name='Command')
+        r.cell('Created',width='12em',name='Created')
+        r.cell('Id',width='20em',name='Id')
+        r.cell('Image',width='20em',name='Image')
+        r.cell('Names',width='20em',name='Names')
+        r.cell('Ports',width='20em',name='Ports')
+        r.cell('Status',width='12em',name='Status')
+
     def commandsFrame(self,pane):
         view = pane.frameGrid(frameCode='V_commands' ,struct=self.struct_command,
                                     datapath='.view')
@@ -177,15 +189,6 @@ class GnrCustomWebPage(object):
             self._docker = Client(DOCKER_HOST)
         return self._docker
 
-    def struct_containers(self,struct):
-        r = struct.view().rows()
-        r.cell('Command',width='12em',name='Command')
-        r.cell('Created',width='12em',name='Created')
-        r.cell('Id',width='20em',name='Id')
-        r.cell('Image',width='20em',name='Image')
-        r.cell('Names',width='20em',name='Names')
-        r.cell('Ports',width='20em',name='Ports')
-        r.cell('Status',width='12em',name='Status')
 
 
 
