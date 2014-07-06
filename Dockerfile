@@ -7,6 +7,7 @@ FROM genropy/genropy
 MAINTAINER Francesco Porcari - francesco@genropy.org
 
 RUN pip install docker-py
+RUN pip install sh
 ADD . /home/genropy_projects/dockereasy
 EXPOSE 8990
 

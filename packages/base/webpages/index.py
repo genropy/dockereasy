@@ -7,23 +7,42 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
-DOCKER_IP = '192.168.59.103'
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from docker.client import Client
+import sh
+
+try:
+    DOCKER_HOST='tcp://%s:2375' %sh.boot2docker('ip')
+except sh.CommandNotFound,e:
+    DOCKER_HOST=None
 
 class GnrCustomWebPage(object):
     css_requires='public'
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
-
+    google_fonts = 'Oxygen:400,700,300'
+    
     def main(self, root, **kwargs):
-        bc = root.borderContainer(datapath='main')
+        mbc = root.borderContainer(background_color='#fefefe', font_family="'Oxygen', sans-serif")
+        self.pageHeader(mbc.contentPane(region='top'))
+        self.pageFooter(mbc.contentPane(region='bottom'))
+        bc = mbc.borderContainer(region='center',datapath='main')
         top = bc.tabContainer(region='top',height='250px',splitter=True,margin='2px')
         self.imagesFrame(top.contentPane(title='Images'))
         self.commandsFrame(top.contentPane(title='Commands',datapath='.commands'))
         self.containerFrame(top.contentPane(title='Container'))
         bc.contentPane(region='center')
-
+        
+    def pageHeader(self,pane):
+        sb = pane.div()
+        sb.div('Dockereasy',font_size='40px',color='#FEE14E',font_weight='bold',line_height='40px',display='inline-block',margin_right='4px',margin_left='10px')
+        sb.div('a Genropy Docker UI',font_size='12px',color='#2A7ACC',line_height='40px',display='inline-block')
+    def pageFooter(self,pane):
+        pane.attributes.update(dict(overflow='hidden',background='silver'))
+        sb = pane.slotToolbar('3,genrologo,*',_class='slotbar_toolbar framefooter',height='20px',
+                        gradient_from='gray',gradient_to='silver',gradient_deg=90)
+        sb.genrologo.img(src='/_rsrc/common/images/made_with_genropy.png',height='20px')
     def imagesFrame(self,pane):
         frame = pane.frameGrid(frameCode='dockerImages',datapath='.images',
                       struct=self.struct_images)
@@ -55,12 +74,6 @@ class GnrCustomWebPage(object):
         r.cell('ParentId', width='20em', name='ParentId')
         r.cell('Size',width='10em',name='Size')
         r.cell('VirtualSize',width='10em',name='VirtualSize')
-
-        #{"Created":1404384367,
-        #"Id":"451ad2d487565d182dd18efdf751cf657c68943c7694095e9d772e06fdc403a5",
-        #"ParentId":"f202f5e89f17dc62b30950eeb85c5cb5be172118180b0a57ea8effed129e10aa",
-        #"RepoTags":["\u003cnone\u003e:\u003cnone\u003e"],
-        #"Size":29858431,"VirtualSize":518328399}
 
     @public_method
     def startSelectedContainers(self,pkeys=None):
@@ -160,9 +173,9 @@ class GnrCustomWebPage(object):
 
     @property
     def docker(self):
-        if not getattr(self,'_dockerclient',None):
-            self._dockerclient = Client('tcp://%s:2375' %DOCKER_IP)
-        return self._dockerclient
+        if not getattr(self,'_docker',None):
+            self._docker = Client(DOCKER_HOST)
+        return self._docker
 
     def struct_containers(self,struct):
         r = struct.view().rows()
