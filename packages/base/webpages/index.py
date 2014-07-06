@@ -34,7 +34,7 @@ class GnrCustomWebPage(object):
         tc = bc.tabContainer(region='center',splitter=True,margin='2px',datapath='main')
         self.imagesPanel(tc.stackContainer(title='Images',datapath='.images'))
         self.containersPanel(tc.borderContainer(title='Containers',datapath='.containers'))
-        self.commandsPanel(tc.contentPane(title='Commands',datapath='.commands'))
+     #self.commandsPanel(tc.contentPane(title='Commands',datapath='.commands'))
         self.infoPanel(tc.contentPane(title='Info',datapath='.info'))
 
     def pageHeader(self,pane):
