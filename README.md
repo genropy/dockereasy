@@ -21,7 +21,8 @@ Release 0.1
   - Commit, Push
   - More....
  
-**Try dockereasy:**
+Try dockereasy in a container
+-
   
 
 	sudo docker run -d -p 8990:8990 -v /var/run/docker.sock:/docker.sock genropy/dockereasy
