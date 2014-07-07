@@ -24,8 +24,8 @@ class GnrCustomWebPage(object):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
     google_fonts = 'Oxygen:400,700,300'
     
-   #def isDeveloper(self):
-   #    return True
+    def isDeveloper(self):
+        return True
         
     def main(self, root, **kwargs):
         bc = root.borderContainer(background_color='#fefefe', font_family="'Oxygen', sans-serif")
@@ -34,7 +34,7 @@ class GnrCustomWebPage(object):
         tc = bc.tabContainer(region='center',splitter=True,margin='2px',datapath='main')
         self.imagesPanel(tc.stackContainer(title='Images',datapath='.images'))
         self.containersPanel(tc.borderContainer(title='Containers',datapath='.containers'))
-     #self.commandsPanel(tc.contentPane(title='Commands',datapath='.commands'))
+        self.commandsPanel(tc.contentPane(title='Commands',datapath='.commands'))
         self.infoPanel(tc.contentPane(title='Info',datapath='.info'))
 
     def pageHeader(self,pane):
@@ -65,11 +65,12 @@ class GnrCustomWebPage(object):
     @public_method
     def searchImages(self,imageToSearch=None):
         result = Bag()
-        result.fromJson(self.docker.search(imageToSearch))
+        for img in self.docker.search(imageToSearch):
+            result.setItem(img['name'],Bag(img))
         return result
 
     def imagesPanel(self,sc):
-        bc = sc.borderContainer(title='!!Local',datapath='.local')
+        bc = sc.borderContainer(title='!!Local',datapath='.local',nodeId='localImages')
         self.searchImagePanel(sc.borderContainer(title='!!Remote',datapath='.remote'))
         frame = bc.frameGrid(frameCode='dockerImages',
                         grid_selected_Id='.selected_Id',
@@ -86,9 +87,10 @@ class GnrCustomWebPage(object):
                                                                         that.loadData();
                                                                     });
                                                 }""",
-                                data='^.currentImages',selfUpdate=True,
+                                data='^.images',selfUpdate=True,
                                 _identifier='Id')
-        frame.dataRpc('.currentImages',self.getCurrentImages,_onStart=True,_lockScreen=True)
+        frame.dataRpc('.images',self.getLocalImages,_onStart=True,_lockScreen=True,
+                     _fired ='^.reload')
         center = bc.tabContainer(region='center',margin='2px')
         center.contentPane(title='Inspect').div('==_inspect?_inspect.getFormattedValue({nested:true}):"";',
                                           _inspect='^.detail.inspect',margin='2px',font_size='12px')
@@ -114,21 +116,28 @@ class GnrCustomWebPage(object):
     def struct_images(self,struct):
         r = struct.view().rows()
         r.cell('RepoTags',width='15em',name='RepoTags')
-        r.cell('Created', width='6em', name='Created')
+        r.cell('Created', width='12em', name='Created',format='epoch')
         r.cell('Id', width='20em', name='Id')
         r.cell('ParentId', width='20em', name='ParentId')
-        r.cell('Size',width='10em',name='Size')
-        r.cell('VirtualSize',width='10em',name='VirtualSize')
+        r.cell('Size',width='10em',name='Size',format='bytes')
+        r.cell('VirtualSize',width='10em',name='VirtualSize',format='bytes')
         
     def searchImagePanel(self,bc):
         frame = bc.framePane(frameCode='searchGrid',region='top',height='50%',
                            border_bottom='1px solid silver',splitter=True)
-        bar = frame.top.slotToolbar('2,parentStackButtons,*,remoteSearch,50')
+        bar = frame.top.slotToolbar('2,parentStackButtons,20,remoteSearch,*,pull_image,10,searchOn,4')
+        bar.dataRpc('.data',self.searchImages,imageToSearch='^.imageToSearch',_lockScreen=True)
         fb = bar.remoteSearch.formbuilder(cols=1,border_spacing='0',margin_top='2px')
         fb.textbox(value='^.imageToSearch',lbl='Search string',lbl_margin_right='2px')
-        bar.dataRpc('.data',self.searchImages,imageToSearch='^.imageToSearch',_lockScreen=True)
+        bar.pull_image.slotButton('Pull images',action='FIRE .pull_selected')
         frame.data('.format',self.searchImage_format())
-        frame.quickGrid(value='^.data',format='^.format',selected_name='.selected_image_name')
+        grid=frame.quickGrid(value='^.data',format='^.format',selected_name='.selected_image_name')
+        rpckw = dict(_grid=grid.js_widget,
+                    _onCalling='kwargs["pkeys"]=_grid.getSelectedPkeys()',
+                    _onResult='FIRE #localImages.reload;')
+        bar.dataRpc('dummy',self.pullSelectedImages,_fired='^.pull_selected',**rpckw)
+        
+        
         center = bc.contentPane(region='center')
         center.dataRpc('.image_info',self.getRemoteImageInfo, image_name='^.selected_image_name',
                                 _if='image_name',_else='',_lockScreen=True)
@@ -154,6 +163,15 @@ class GnrCustomWebPage(object):
         format.setItem('is_trusted',None,dtype='B',field='is_trusted',name='Trusted')
         format.setItem('star_count',None,width='7em',field='star_count',name='Stars')
         return format
+        
+    @public_method
+    def pullSelectedImages(self,pkeys=None):
+        for imageId in pkeys:
+            print 'pulling image ',imageId
+            result = self.docker.pull(imageId,stream=True)
+            for k in result:
+                print k
+    
         
     def containersPanel(self,bc):
         self.containersPane_top(bc.contentPane(region='top',height='50%',border_bottom='1px solid silver',splitter=True))
@@ -197,10 +215,8 @@ class GnrCustomWebPage(object):
     def getContainerDetails(self,container=None):
         inspect = Bag()
         changes = Bag()
-
         inspect.fromJson(self.docker.inspect_container(container))
         changes.fromJson(self.docker.diff(container))
-
         return Bag(dict(inspect=inspect,changes=changes,logs=self.docker.logs(container)))
         
         
@@ -222,7 +238,7 @@ class GnrCustomWebPage(object):
     def struct_containers(self,struct):
         r = struct.view().rows()
         r.cell('Command',width='12em',name='Command')
-        r.cell('Created',width='12em',name='Created')
+        r.cell('Created',width='12em',name='Created',format='epoch')
         r.cell('Id',width='20em',name='Id')
         r.cell('Image',width='20em',name='Image')
         r.cell('Names',width='20em',name='Names')
@@ -266,7 +282,7 @@ class GnrCustomWebPage(object):
         r.cell('open_port')
 
     @public_method
-    def getCurrentImages(self):
+    def getLocalImages(self):
         result = Bag()
         result.fromJson(self.docker.images(),listJoiner=',')
         return result
