@@ -295,15 +295,102 @@ class GnrCustomWebPage(object):
 
         fb = form.record.formbuilder(cols=2,border_spacing='3px')
         form.top.slotToolbar('2,navigation,*,delete,add,save,semaphore,2')
+        form.dataController("""var f = new gnr.GnrBag();
+                localImages.forEach(function(r){
+                    console.log('r',r);
+                        var v = r.getValue()
+                        f.setItem(r.label,null,{id:v.getItem('Id'),caption:v.getItem('RepoTags')});
+                    })
+            SET #FORM.localImages = f;
+            """,localImages='^#localImages.images')
+        fb.filteringSelect(value='^.image',lbl='Image',storepath='#FORM.localImages')
+        fb.textbox(value='^.command',lbl='Command')
+        fb.textbox(value='^.hostname',lbl='Hostname')
+        fb.textbox(value='^.user',lbl='User')
+        fb.checkbox(value='^.detach',lbl='Detach')
+        fb.checkbox(value='^.stdin_open',lbl='OpenStdin')
+        fb.checkbox(value='^.tty',lbl='Tty')
+        fb.simpleTextArea(value='^.ports',lbl='Ports') #list
+        fb.textbox(value='^.environment',lbl='Env') #dict
+        fb.textbox(value='^.dns',lbl='Dns') #list
+        fb.simpleTextArea(value='^.volumes',lbl='Volumes') #list
+        fb.simpleTextArea(value='^.volumes_from',lbl='Volumes from') #list
+        fb.checkbox(value='^.network_disabled',lbl='Network disabled')
+        fb.textbox(value='^.name',lbl='Name')
+        fb.textbox(value='^.entrypoint',lbl='Entrypoint')
+        fb.checkbox(value='^.cpu_shares',lbl='Cpu shares')
+        fb.textbox(value='^.working_dir',lbl='WorkingDir')
+        fb.textbox(value='^.domainname',lbl='Domain')
+        fb.numberTextbox(value='^.memswap_limit',lbl='Memswap limit')
 
-        fb.textbox(value='^.dockerpath',lbl='Docker image')
-        fb.checkbox(value='^.daemon',lbl='Daemon')
-        fb.checkbox(value='^.open_port',lbl='Open ports')
+
+    #def create_container(self, image, command=None, hostname=None, user=None,
+    #        detach=False, stdin_open=False, tty=False,
+    #        mem_limit=0, ports=None, environment=None, dns=None,
+    #        volumes=None, volumes_from=None,
+    #        network_disabled=False, name=None, entrypoint=None,
+    #        cpu_shares=None, working_dir=None, domainname=None,
+    #        memswap_limit=0):
+    
+
+#def _container_config(self, image, command, hostname=None, user=None,
+            #detach=False, stdin_open=False, tty=False,
+            #mem_limit=0, ports=None, environment=None, dns=None,
+            #volumes=None, volumes_from=None,
+            #network_disabled=False, entrypoint=None,
+            #cpu_shares=None, working_dir=None, domainname=None,
+            #memswap_limit=0):   
+
+#{
+#"Hostname":"",
+#"User":"",
+#"Memory":0,
+#"MemorySwap":0,
+#"AttachStdin":false,
+#"AttachStdout":true,
+#"AttachStderr":true,
+#"PortSpecs":null,
+#"Tty":false,
+#"OpenStdin":false,
+#"StdinOnce":false,
+#"Env":null,
+#"Cmd":[
+#"date"
+#],
+#"Image":"base",
+#"Volumes":{
+#"/tmp": {}
+#},
+#"WorkingDir":"",
+#"DisableNetwork": false,
+#"ExposedPorts":{
+#"22/tcp": {}
+#}
+#}
+
+#HTTP/1.1 201 OK
+#Content-Type: application/json
+#
+#{
+#"Id":"e90e34656806"
+#"Warnings":[]
+#}
+#
+
+
+
+
+
+
 
     @public_method
-    def saveCommand(self,data=None,**kwargs):
-        p = self.site.getStaticPath('site:docker','containers','%s.xml' %data['dockerpath'].replace('/','_'),autocreate=-1)
-        data.toXml(p)
+    def saveCommand(self,data=None,path=None,**kwargs):
+        fileid = data['fileid'] or self.getUuid()
+        data['fileid'] = fileid
+        if path=='*newrecord*':
+            path = self.site.getStaticPath('site:docker','commands','%s.xml' %fileid,autocreate=-1)
+        data.toXml(path)
+        return dict(path=path)
 
     def struct_command(self,struct):
         r = struct.view().rows()
