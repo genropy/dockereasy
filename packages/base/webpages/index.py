@@ -128,7 +128,7 @@ class GnrCustomWebPage(object):
         bar = frame.top.slotToolbar('2,parentStackButtons,20,remoteSearch,*,pull_image,10,searchOn,4')
         bar.dataRpc('.data',self.searchImages,imageToSearch='^.imageToSearch',_lockScreen=True)
         fb = bar.remoteSearch.formbuilder(cols=1,border_spacing='0',margin_top='2px')
-        fb.textbox(value='^.imageToSearch',lbl='Search string',lbl_margin_right='2px')
+        fb.textbox(value='^.imageToSearch',lbl='Search string',lbl_margin_right='2px',onEnter=True)
         bar.pull_image.slotButton('Pull images',action='FIRE .pull_selected')
         frame.data('.format',self.searchImage_format())
         grid=frame.quickGrid(value='^.data',format='^.format',selected_name='.selected_image_name')
@@ -142,11 +142,9 @@ class GnrCustomWebPage(object):
         center.dataRpc('.image_info',self.getRemoteImageInfo, image_name='^.selected_image_name',
                                 _if='image_name',_else='',_lockScreen=True)
                                 
-        iframe = center.contentPane(overflow='hidden').htmliframe(height='100%',width='100%',border=0)
-        center.dataController('iframe.domNode.contentWindow.document.body.innerHTML = image_info',
-                image_info='^.image_info',iframe=iframe)
 
-   
+        center.contentPane(overflow='hidden').iFrameDiv(value='^.image_info',height='100%',width='100%',zoom='.8')
+       
     @public_method
     def getRemoteImageInfo(self,image_name=None):
         urlobj = urllib.urlopen('http://registry.hub.docker.com/u/%s' % image_name)
