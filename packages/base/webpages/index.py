@@ -413,7 +413,12 @@ class GnrCustomWebPage(object):
             #0.0.0.0:49153->8080/tcp
             r = Bag(cnt)
             r['Names'] = ','.join(r['Names'])
-            r['Ports'] = ','.join(['%(IP)s:%(PublicPort)s->%(PrivatePort)s/%(Type)s' %kw for kw in r['Ports']])
+            ports=[]
+            for kw in r['Ports']:
+                nkw={'IP':'','PrivatePort':'','PublicPort':'','Type':''}
+                nkw.update(kw) 
+                ports.append('%(IP)s:%(PublicPort)s->%(PrivatePort)s/%(Type)s' % nkw)
+            r['Ports'] = '<br/>'.join(ports)
             if 'Exited' in r['Status']:
                 prefix = 'inactive'
             else:
