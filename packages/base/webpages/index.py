@@ -14,6 +14,8 @@ from docker.client import Client
 import sh
 import urllib
 from bs4 import BeautifulSoup
+from gnr.core.gnrstring import fromJson
+from time import sleep
 try:
     DOCKER_HOST = 'tcp://%s:2375' %sh.boot2docker('ip')
 except sh.CommandNotFound,e:
@@ -65,8 +67,16 @@ class GnrCustomWebPage(object):
     @public_method
     def searchImages(self,imageToSearch=None):
         result = Bag()
-        for img in self.docker.search(imageToSearch):
-            result.setItem(img['name'],Bag(img))
+        currentImages = [img['RepoTags'][0].split(':')[0] for img in self.docker.images() if img['RepoTags'][0]]
+        images = self.docker.search(imageToSearch)
+        for img in images:
+            b = Bag(img)
+            if b['name'] in currentImages:
+                command = 'Update Image'
+            else:
+                command = 'Pull image'
+            b['status'] = """<a style="cursor:pointer; text-align:center;" href="javascript:genro.publish('pull_image',{image:'%s'})">%s</a> """ %(b['name'],command)
+            result.setItem(img['name'],b)
         return result
 
     def imagesPanel(self,sc):
@@ -80,11 +90,12 @@ class GnrCustomWebPage(object):
         frame.top.slotToolbar('2,parentStackButtons,*,delrow,searchOn,4')
         frame.grid.bagStore(storeType='ValuesBagRows',
                                 sortedBy='=.grid.sorted',
+
                                 deleteRows="""function(pkeys,protectPkeys){
                                                     var that = this;
                                                     genro.serverCall('deleteImages',{imagesNames:pkeys},
                                                                     function(){
-                                                                        that.loadData();
+                                                                        that.storeNode.fireEvent('.reload');
                                                                     });
                                                 }""",
                                 data='^.images',selfUpdate=True,
@@ -125,24 +136,30 @@ class GnrCustomWebPage(object):
     def searchImagePanel(self,bc):
         frame = bc.framePane(frameCode='searchGrid',region='top',height='50%',
                            border_bottom='1px solid silver',splitter=True)
-        bar = frame.top.slotToolbar('2,parentStackButtons,20,remoteSearch,*,pull_image,10,searchOn,4')
+        bar = frame.top.slotToolbar('2,parentStackButtons,20,remoteSearch,*,10,searchOn,4')
         bar.dataRpc('.data',self.searchImages,imageToSearch='^.imageToSearch',_lockScreen=True)
         fb = bar.remoteSearch.formbuilder(cols=1,border_spacing='0',margin_top='2px')
         fb.textbox(value='^.imageToSearch',lbl='Search string',lbl_margin_right='2px',onEnter=True)
-        bar.pull_image.slotButton('Pull images',action='FIRE .pull_selected')
+        #bar.pull_image.slotButton('Pull images',action='FIRE .pull_selected')
         frame.data('.format',self.searchImage_format())
-        grid=frame.quickGrid(value='^.data',format='^.format',selected_name='.selected_image_name')
-        rpckw = dict(_grid=grid.js_widget,
-                    _onCalling='kwargs["pkeys"]=_grid.getSelectedPkeys()',
-                    _onResult='FIRE #localImages.reload;')
-        bar.dataRpc('dummy',self.pullSelectedImages,_fired='^.pull_selected',**rpckw)
-        
-        
+        grid=frame.quickGrid(value='^.data',format='^.format',multiSelect=False,
+                            subscribe_update_image_pull="""
+                            var b = this.widget.storebag();
+                            var r = b.getItem($1.image);
+                            if(!r){
+                                return;
+                            }
+                            r.setItem('status',$1.status);
+                            """,
+                            selected_name='.selected_image_name')
+        grid.dataRpc('dummy',self.pullImage,subscribe_pull_image=True,
+                    _onCalling='genro.publish("update_image_pull",{image:image,status:"Prepare pull..."})',
+                    _onResult='FIRE #localImages.reload;',
+                    timeout=0)
         center = bc.contentPane(region='center')
         center.dataRpc('.image_info',self.getRemoteImageInfo, image_name='^.selected_image_name',
-                                _if='image_name',_else='',_lockScreen=True)
+                                _if='image_name',_else='')
                                 
-
         center.contentPane(overflow='hidden').iFrameDiv(value='^.image_info',height='100%',width='100%',zoom='.8')
        
     @public_method
@@ -155,20 +172,35 @@ class GnrCustomWebPage(object):
                 
     def searchImage_format(self):
         format = Bag()
-        format.setItem('name',None,width='10em',field='name',name='Name')
-        format.setItem('description',None,width='40em',field='description',name='Description')
-        format.setItem('is_official',None,dtype='B',field='is_official',name='Official')
-        format.setItem('is_trusted',None,dtype='B',field='is_trusted',name='Trusted')
-        format.setItem('star_count',None,width='7em',field='star_count',name='Stars')
+        format.setItem('name',None,width='10em',name='Name')
+        format.setItem('description',None,width='40em',name='Description')
+        format.setItem('is_official',None,dtype='B',name='Official')
+        format.setItem('is_trusted',None,dtype='B',name='Trusted')
+        format.setItem('star_count',None,width='7em',name='Stars')
+        format.setItem('status',None,width='100%',name='Status')
         return format
         
     @public_method
-    def pullSelectedImages(self,pkeys=None):
-        for imageId in pkeys:
-            print 'pulling image ',imageId
-            result = self.docker.pull(imageId,stream=True)
-            for k in result:
-                print k
+    def pullImage(self,image=None):
+        for prog in self.docker.pull(image,stream=True):
+            prog = fromJson(prog)
+            status = prog.get('status')
+            if not status:
+                continue
+            if ' from ' in status:
+                status,f = status.split(' from ')
+            status = """ %s: %s """ %(status,prog['id'])
+            progressDetail = prog.get('progressDetail',None)
+            if progressDetail:
+                progressDetail['status'] = status
+                progress = prog.get('progress','')
+                if progress:
+                    progressDetail['desc'] = progress.split(']')[1].strip()
+                else:
+                    progressDetail['desc'] = ''
+                status = r""" %(status)s <progress style='width:12em' max='%(total)s' value='%(current)s'></progress> %(desc)s """ %progressDetail
+            print 'status',status
+            self.clientPublish('update_image_pull',status=status,image=image)
     
         
     def containersPanel(self,bc):
@@ -282,7 +314,9 @@ class GnrCustomWebPage(object):
     @public_method
     def getLocalImages(self):
         result = Bag()
-        result.fromJson(self.docker.images(),listJoiner=',')
+        images = self.docker.images()
+        if images:
+            result.fromJson(images,listJoiner=',')
         return result
 
     @public_method
