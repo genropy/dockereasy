@@ -9,14 +9,13 @@ Release 0.1
 ![image](https://raw.githubusercontent.com/genropy/dockereasy/master/Dockereasy.png)
 **Features**
 
-  - Local images: list, inspect, remove, history
+  - Local images: list, inspect, remove, history, pull
   - Repository images : search & Info
   - Containers : Stop, Start, Remove, Inspect,Changes,Logs
   
   
 **To do**
 
-  - Pull images
   - Create containers
   - Commit, Push
   - More....
