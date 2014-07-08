@@ -15,7 +15,6 @@ import sh
 import urllib
 from bs4 import BeautifulSoup
 from gnr.core.gnrstring import fromJson
-from time import sleep
 try:
     DOCKER_HOST = 'tcp://%s:2375' %sh.boot2docker('ip')
 except sh.CommandNotFound,e:
@@ -23,7 +22,7 @@ except sh.CommandNotFound,e:
 
 class GnrCustomWebPage(object):
     css_requires='public'
-    py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
+    py_requires='commands_panel:CommandsPanel'
     google_fonts = 'Oxygen:400,700,300'
     
     def isDeveloper(self):
@@ -36,7 +35,7 @@ class GnrCustomWebPage(object):
         tc = bc.tabContainer(region='center',splitter=True,margin='2px',datapath='main')
         self.imagesPanel(tc.stackContainer(title='Images',datapath='.images'))
         self.containersPanel(tc.borderContainer(title='Containers',datapath='.containers'))
-        self.commandsPanel(tc.contentPane(title='Commands',datapath='.commands'))
+        tc.contentPane(title='Commands',datapath='.commands').storedCommandsPanel()
         self.infoPanel(tc.contentPane(title='Info',datapath='.info'))
 
     def pageHeader(self,pane):
@@ -87,7 +86,12 @@ class GnrCustomWebPage(object):
                       struct=self.struct_images,region='top',height='50%',splitter=True,
                       border_bottom='1px solid silver')
         
-        frame.top.slotToolbar('2,parentStackButtons,*,delrow,searchOn,4')
+        bar = frame.top.slotToolbar('2,parentStackButtons,*,runImage,10,delrow,searchOn,4')
+        bar.runImage.slotButton('Run Image',
+                                action="""
+                                          frm.newrecord({image:selectedimage})""",
+                                selectedimage = '=.grid.selected_Id',
+                                frm=bc.commandFormRunner().js_form)
         frame.grid.bagStore(storeType='ValuesBagRows',
                                 sortedBy='=.grid.sorted',
 
@@ -258,6 +262,7 @@ class GnrCustomWebPage(object):
     @public_method
     def stopSelectedContainers(self,pkeys=None):
         for contId in pkeys:
+            print 'STOPPING',contId
             self.docker.stop(contId)
 
     @public_method
@@ -274,129 +279,6 @@ class GnrCustomWebPage(object):
         r.cell('Names',width='20em',name='Names')
         r.cell('Ports',width='20em',name='Ports')
         r.cell('Status',width='12em',name='Status')
-
-    def commandsPanel(self,pane):
-        view = pane.frameGrid(frameCode='V_commands' ,struct=self.struct_command,
-                                    datapath='.view')
-        view.top.slotToolbar('2,vtitle,*,delrow,addrow,5',vtitle='Commands')
-        fstore = view.grid.fsStore(childname='store',
-                                    folders='site:docker/commands',
-                                    include='*.xml')
-        view.dataController("fstore.store.loadData();",fstore=fstore,_onBuilt=True)
-        form = view.grid.linkedForm(frameCode='F_commands',
-                                 datapath='.form',loadEvent='onRowDblClick',
-                                 dialog_height='450px',dialog_width='620px',
-                                 modal=True,
-                                 dialog_title='Command',
-                                 handlerType='dialog',
-                                 childname='form',attachTo=pane,
-                                 store='document')
-        form.store.handler('save',rpcmethod=self.saveCommand)
-
-        fb = form.record.formbuilder(cols=2,border_spacing='3px')
-        form.top.slotToolbar('2,navigation,*,delete,add,save,semaphore,2')
-        form.dataController("""var f = new gnr.GnrBag();
-                localImages.forEach(function(r){
-                    console.log('r',r);
-                        var v = r.getValue()
-                        f.setItem(r.label,null,{id:v.getItem('Id'),caption:v.getItem('RepoTags')});
-                    })
-            SET #FORM.localImages = f;
-            """,localImages='^#localImages.images')
-        fb.filteringSelect(value='^.image',lbl='Image',storepath='#FORM.localImages')
-        fb.textbox(value='^.command',lbl='Command')
-        fb.textbox(value='^.hostname',lbl='Hostname')
-        fb.textbox(value='^.user',lbl='User')
-        fb.checkbox(value='^.detach',lbl='Detach')
-        fb.checkbox(value='^.stdin_open',lbl='OpenStdin')
-        fb.checkbox(value='^.tty',lbl='Tty')
-        fb.simpleTextArea(value='^.ports',lbl='Ports') #list
-        fb.textbox(value='^.environment',lbl='Env') #dict
-        fb.simpleTextArea(value='^.dns',lbl='Dns') #list
-        fb.simpleTextArea(value='^.volumes',lbl='Volumes') #list
-        fb.simpleTextArea(value='^.volumes_from',lbl='Volumes from') #list
-        fb.checkbox(value='^.network_disabled',lbl='Network disabled')
-        fb.textbox(value='^.name',lbl='Name')
-        fb.textbox(value='^.entrypoint',lbl='Entrypoint')
-        fb.checkbox(value='^.cpu_shares',lbl='Cpu shares')
-        fb.textbox(value='^.working_dir',lbl='WorkingDir')
-        fb.textbox(value='^.domainname',lbl='Domain')
-        fb.numberTextbox(value='^.memswap_limit',lbl='Memswap limit')
-
-
-    #def create_container(self, image, command=None, hostname=None, user=None,
-    #        detach=False, stdin_open=False, tty=False,
-    #        mem_limit=0, ports=None, environment=None, dns=None,
-    #        volumes=None, volumes_from=None,
-    #        network_disabled=False, name=None, entrypoint=None,
-    #        cpu_shares=None, working_dir=None, domainname=None,
-    #        memswap_limit=0):
-    
-
-#def _container_config(self, image, command, hostname=None, user=None,
-            #detach=False, stdin_open=False, tty=False,
-            #mem_limit=0, ports=None, environment=None, dns=None,
-            #volumes=None, volumes_from=None,
-            #network_disabled=False, entrypoint=None,
-            #cpu_shares=None, working_dir=None, domainname=None,
-            #memswap_limit=0):   
-
-#{
-#"Hostname":"",
-#"User":"",
-#"Memory":0,
-#"MemorySwap":0,
-#"AttachStdin":false,
-#"AttachStdout":true,
-#"AttachStderr":true,
-#"PortSpecs":null,
-#"Tty":false,
-#"OpenStdin":false,
-#"StdinOnce":false,
-#"Env":null,
-#"Cmd":[
-#"date"
-#],
-#"Image":"base",
-#"Volumes":{
-#"/tmp": {}
-#},
-#"WorkingDir":"",
-#"DisableNetwork": false,
-#"ExposedPorts":{
-#"22/tcp": {}
-#}
-#}
-
-#HTTP/1.1 201 OK
-#Content-Type: application/json
-#
-#{
-#"Id":"e90e34656806"
-#"Warnings":[]
-#}
-#
-
-
-
-
-
-
-
-    @public_method
-    def saveCommand(self,data=None,path=None,**kwargs):
-        fileid = data['fileid'] or self.getUuid()
-        data['fileid'] = fileid
-        if path=='*newrecord*':
-            path = self.site.getStaticPath('site:docker','commands','%s.xml' %fileid,autocreate=-1)
-        data.toXml(path)
-        return dict(path=path)
-
-    def struct_command(self,struct):
-        r = struct.view().rows()
-        r.cell('dockerpath')
-        r.cell('daemon')
-        r.cell('open_port')
 
     @public_method
     def getLocalImages(self):
@@ -419,7 +301,8 @@ class GnrCustomWebPage(object):
                 nkw.update(kw) 
                 ports.append('%(IP)s:%(PublicPort)s->%(PrivatePort)s/%(Type)s' % nkw)
             r['Ports'] = '<br/>'.join(ports)
-            if 'Exited' in r['Status']:
+            status = r['Status']
+            if not status  or 'Exited' in status:
                 prefix = 'inactive'
             else:
                 prefix = 'active'
