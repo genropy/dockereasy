@@ -312,7 +312,7 @@ class GnrCustomWebPage(object):
         fb.checkbox(value='^.tty',lbl='Tty')
         fb.simpleTextArea(value='^.ports',lbl='Ports') #list
         fb.textbox(value='^.environment',lbl='Env') #dict
-        fb.textbox(value='^.dns',lbl='Dns') #list
+        fb.simpleTextArea(value='^.dns',lbl='Dns') #list
         fb.simpleTextArea(value='^.volumes',lbl='Volumes') #list
         fb.simpleTextArea(value='^.volumes_from',lbl='Volumes from') #list
         fb.checkbox(value='^.network_disabled',lbl='Network disabled')
