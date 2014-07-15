@@ -82,7 +82,7 @@ class GnrCustomWebPage(object):
         bc = sc.borderContainer(title='!!Local',datapath='.local',nodeId='localImages')
         self.searchImagePanel(sc.borderContainer(title='!!Remote',datapath='.remote'))
         frame = bc.frameGrid(frameCode='dockerImages',
-                        grid_selected_Id='.selected_Id',
+                        grid_selected_name='.selected_name',
                       struct=self.struct_images,region='top',height='50%',splitter=True,
                       border_bottom='1px solid silver')
         
@@ -90,7 +90,7 @@ class GnrCustomWebPage(object):
         bar.runImage.slotButton('Run Image',
                                 action="""
                                           frm.newrecord({image:selectedimage})""",
-                                selectedimage = '=.grid.selected_Id',
+                                selectedimage = '=.grid.selected_name',
                                 frm=bc.commandFormRunner().js_form)
         frame.grid.bagStore(storeType='ValuesBagRows',
                                 sortedBy='=.grid.sorted',
@@ -284,8 +284,15 @@ class GnrCustomWebPage(object):
     def getLocalImages(self):
         result = Bag()
         images = self.docker.images()
-        if images:
-            result.fromJson(images,listJoiner=',')
+        if not images:
+            return result
+        for i,img in enumerate(images):
+            r = Bag()
+            r.fromJson(img,listJoiner=',')
+            r['Id'] = r['Id'][0:8]
+            r['ParentId'] = r['ParentId'][0:8]
+            r['name'] = img['RepoTags'][0]
+            result['r_%i' %i] = r
         return result
 
     @public_method

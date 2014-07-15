@@ -36,7 +36,7 @@ class CommandsPanel(BaseComponent):
         view.dataController("fstore.store.loadData();",fstore=fstore,_onBuilt=True)
         form = view.grid.linkedForm(frameCode='F_commands',
                                  datapath='.form',loadEvent='onRowDblClick',
-                                 dialog_height='450px',dialog_width='620px',
+                                 dialog_height='600px',dialog_width='800px',
                                  dialog_title='Command',
                                  handlerType='dialog',
                                  childname='form',attachTo=pane,
@@ -65,16 +65,19 @@ class CommandsPanel(BaseComponent):
         form.dataController("""var f = new gnr.GnrBag();
                 localImages.forEach(function(r){
                         var v = r.getValue()
-                        f.setItem(r.label,null,{id:v.getItem('Id'),caption:v.getItem('RepoTags')});
+                        f.setItem(r.label,null,{id:v.getItem('name'),caption:v.getItem('name')});
                     })
             SET #FORM.localImages = f;
             """,localImages='^#localImages.images')
-        bc = form.center.borderContainer()
-        pane = bc.contentPane(region='center',datapath='.record')
-        fb = pane.div(margin='10px').formbuilder(cols=2,border_spacing='3px')
-        fb.filteringSelect(value='^.image',lbl='Image',storepath='#FORM.localImages',validate_notnull=True)
+        maintc = form.center.stackContainer(region='center',datapath='.record',margin='2px')
+        form.top.slotToolbar('*,stackButtons,*')
+        bc = maintc.borderContainer(title='Create')
+        fb = bc.contentPane(region='center').div(margin_right='10px').formbuilder(cols=2,border_spacing='3px',colswidth='auto',
+                                                        width='100%',fld_width='100%',lbl_margin_left='5px')
+        fb.filteringSelect(value='^.image',lbl='Image',storepath='#FORM.localImages',
+                            validate_notnull=True,colspan=2)
         
-        fb.textbox(value='^.create.command',lbl='Command')
+        fb.textbox(value='^.create.command',lbl='Command',colspan=2)
         fb.textbox(value='^.create.hostname',lbl='Hostname')
         fb.textbox(value='^.create.user',lbl='User')
         fb.checkbox(value='^.create.detach',label='Detach')
@@ -83,32 +86,66 @@ class CommandsPanel(BaseComponent):
         fb.checkbox(value='^.create.network_disabled',label='Network disabled')
         fb.textbox(value='^.create.name',lbl='Name')
         fb.textbox(value='^.create.entrypoint',lbl='Entrypoint')
-        fb.checkbox(value='^.create.cpu_shares',label='Cpu shares')
-        fb.textbox(value='^.create.working_dir',lbl='WorkingDir')
+        fb.numberTextbox(value='^.create.cpu_shares',lbl='Cpu shares')
+        fb.textbox(value='^.create.mem_limit',lbl='Mem. Limit')
         fb.textbox(value='^.create.domainname',lbl='Domain')
         fb.numberTextbox(value='^.create.memswap_limit',lbl='Memswap limit')
-        fb.simpleTextArea(value='^.create.environment',lbl='Env') #dict
-        fb.simpleTextArea(value='^.create.ports',lbl='Ports') #list
-        fb.simpleTextArea(value='^.common.dns',lbl='Dns') #list
-        fb.simpleTextArea(value='^.common.volumes',lbl='Volumes') #list
-        fb.simpleTextArea(value='^.common.volumes_from',lbl='Volumes from') #list
-        
+        fb.textbox(value='^.create.working_dir',lbl='WorkingDir',colspan=2)
+
+        bottom = bc.framePane(region='bottom',height='150px')
+        bottom.top.slotToolbar('*,stackButtons,*')
+        tc = bottom.center.stackContainer()
+        grid = tc.contentPane(title='Ports').quickGrid(value='^.create.ports',border='1px solid silver') #list
+        grid.column('ip',name='IP',width='100%',edit=True)
+        grid.column('hostPort',width='7em',name='HostPort',edit=True)
+        grid.column('containerPort',width='7em',name='ContainerPort',edit=True)
+        grid.tools('delrow,addrow',position='BL')
+        grid = tc.contentPane(title='Volumes').quickGrid(value='^.common.volumes',border='1px solid silver') #list
+        grid.column('volumePath',name='VolumePath',width='50%',edit=True)
+        grid.column('hostPath',name='HostPath',width='50%',edit=True)
+        grid.tools('delrow,addrow',position='BL')
+        grid = tc.contentPane(title='Volumes from').quickGrid(value='^.common.volumes_from',border='1px solid silver') #list
+        grid.column('container',name='Container',width='100%',edit=dict(tag='filteringSelect',storepath='#FORM.localImages'))
+        grid.tools('delrow,addrow',position='BL')
+        grid = tc.contentPane(title='Dns').quickGrid(value='^.common.dns',border='1px solid silver') #list
+        grid.column('dns',name='DNS',width='100%',edit=True)
+        grid.tools('delrow,addrow',position='BL')
+        grid = tc.contentPane(title='Env').quickGrid(value='^.create.environment',border='1px solid silver') #dict
+        grid.column('varname',name='Key',width='50%',edit=True)
+        grid.column('value',name='Value',width='50%',edit=True)
+        grid.tools('delrow,addrow',position='BL')
+
         #start
-        fb.simpleTextArea(value='^.start.binds',lbl='Binds')
-        fb.simpleTextArea(value='^.start.port_bindings',lbl='Port Bindings')
-        fb.simpleTextArea(value='^.start.lxc_conf',lbl='Lxc conf')
-        fb.checkbox(value='^.start.publish_all_ports',label='All Ports')
-        fb.simpleTextArea(value='^.start.links',lbl='Links')
-        fb.simpleTextArea(value='^.start.dns_search',lbl='Dns search')
-        fb.checkbox(value='^.start.privileged',label='Privileged')
+        bc = maintc.borderContainer(title='Start')
+
+        fb = bc.contentPane(region='top').div(margin_right='10px').formbuilder(cols=3,border_spacing='3px',
+                                                        lbl_min_width='30px',colswidth='auto',
+                                                        width='100%',fld_width='100%')
         fb.textbox(value='^.start.network_mode',lbl='Network mode')
+        fb.checkbox(value='^.start.publish_all_ports',label='All Ports',lbl=' ')
+        fb.checkbox(value='^.start.privileged',label='Privileged',lbl=' ')
+        fb.simpleTextArea(value='^.start.dns_search',lbl='Dns search',colspan=3)
+
+        bottom = bc.framePane(region='center')
+        bottom.top.slotToolbar('*,stackButtons,*')
+        tc = bottom.center.stackContainer()
+
+        tc.contentPane(title='Binds').simpleTextArea(value='^.start.binds')
+        tc.contentPane(title='Port Bindings').simpleTextArea(value='^.start.port_bindings')
+        tc.contentPane(title='Lxc conf').simpleTextArea(value='^.start.lxc_conf',lbl='Lxc conf')
+        grid = tc.contentPane(title='Links').quickGrid(value='^.start.links',border='1px solid silver') #list
+        grid.column('container',name='Container',width='20em',edit=dict(tag='filteringSelect',storepath='#FORM.localImages'))
+        grid.column('alias',name='Alias',width='20em',edit=True)
+        grid.tools('delrow,addrow',position='BL')
+
+
 
 
     @struct_method
     def cm_commandFormRunner(self,pane):
         dlg = pane.dialog(title='Create and Run')
         form = dlg.frameForm(frameCode='container_runner',
-                            height='450px',width='620px',
+                            height='400px',width='500px',
                             datapath='main.create.runner',
                             store='memory')
         form.commandFormFields()
